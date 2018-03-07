@@ -82,7 +82,9 @@ export class NgbDropdownToggle {
   host: {
     '[class.show]': 'isOpen()',
     '(keyup.esc)': 'closeFromOutsideEsc()',
-    '(document:click)': 'closeFromClick($event)'
+    '(document:click)': 'closeFromClick($event)',
+    '(keydown.ArrowUp)': 'moveUp()',
+    '(keydown.ArrowDown)': 'moveDown()'
   }
 })
 export class NgbDropdown implements OnInit {
@@ -120,7 +122,7 @@ export class NgbDropdown implements OnInit {
    */
   @Output() openChange = new EventEmitter();
 
-  constructor(config: NgbDropdownConfig, ngZone: NgZone) {
+  constructor(config: NgbDropdownConfig, ngZone: NgZone, private elementRef: ElementRef) {
     this.placement = config.placement;
     this.autoClose = config.autoClose;
     this._zoneSubscription = ngZone.onStable.subscribe(() => { this._positionMenu(); });
@@ -154,6 +156,9 @@ export class NgbDropdown implements OnInit {
   close(): void {
     if (this._open) {
       this._open = false;
+      if (this._toggle) {
+        this._toggle.anchorEl.focus();
+      }
       this.openChange.emit(false);
     }
   }
@@ -188,6 +193,60 @@ export class NgbDropdown implements OnInit {
   }
 
   ngOnDestroy() { this._zoneSubscription.unsubscribe(); }
+
+  getActiveElmIndex(list: HTMLElement[]): number {
+    let i = 0;
+    let position = -1;
+
+    for (let elm of list) {
+      if (elm === document.activeElement) {
+        position = i;
+      }
+      i++;
+    }
+    return position;
+  }
+
+  moveDown(): boolean {
+    return this.move(1);
+  }
+
+  moveUp(): boolean {
+    return this.move(-1);
+  }
+
+  private move(modifier: number): boolean {
+    if (!this.isOpen()) {
+      this.open();
+    }
+
+    if (!this._toggle) {
+      return true;
+    }
+
+    const list: HTMLElement[] = this._toggle.anchorEl.nextElementSibling.children;
+
+    let position = this.getActiveElmIndex(list);
+
+    position += modifier;
+
+    if (position >= list.length) {
+      position = list.length - 1;
+    }
+
+    if (position < 0) {
+      position = 0;
+    }
+
+    let elm: HTMLElement = list[position];
+
+    if (elm) {
+      elm.focus();
+      return false;
+    }else {
+      return true;
+    }
+  }
 
   private _isEventFromToggle($event) { return this._toggle ? this._toggle.isEventFrom($event) : false; }
 
